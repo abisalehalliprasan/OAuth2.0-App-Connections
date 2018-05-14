@@ -8,7 +8,7 @@
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/IntuitDeveloper/OAuth2.0-demo-nodejs/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/IntuitDeveloper/OAuth2.0-demo-nodejs/?branch=master)
  
 
-Intuit OAuth2.0 and OpenID Connect Demo in Javascript with Express
+Sample App to Test App Connections : OAuth2.0-DevX-UI
 ==========================================================
 
 ## Overview
@@ -26,8 +26,8 @@ We will showcase how to integrate your app with the Intuit Developer Platform. I
 ### Via Github Repo (Recommended)
 
 ```bash
-$ git clone https://github.com/IntuitDeveloper/OAuth2.0-demo-nodejs
-$ cd OAuth2.0-demo-nodejs
+$ git clone https://github.com/IntuitDeveloper/OAuth2.0-DevX-UI
+$ cd OAuth2.0-DevX-UI
 $ npm install
 ```
 
@@ -63,83 +63,106 @@ By default, the RedirectURI is set to the following for this demo:
 
 `http://localhost:3000/callback`
 
-![Keys](views/Keys.png)
 
+## Instruction on Deploying it to AWS using Sceptre
 
-### TLS / SSL (**optional**)
+Creating AWS stack :
 
-If you want your enpoint to be exposed over the internet. The easiest way to do that while you are still developing your code locally is to use [ngrok](https://ngrok.com/).  
+1.) Have a Learning / Staging / Production Account
 
-Here are the steps to configure ngrok  
-1. Download and install ngrok  
-2. Expose your localhost by running "ngrok http 3000" on the command line.  
-3. You will then get a forwarding url that looks something like this: Forwarding https://755c8b38.ngrok.io -> localhost:3000
+2.) Follow the steps mentioned in the awesome-service-aws repo to get your environment created for running the scripts:  
+    https://github.intuit.com/idg/awesome-service-aws-config
 
-This will expose localhost:3000 to the Internet. Your endpoint url will now be https://755c8b38.ngrok.io/webhooks Copy this url and use it for setting the redirectUri  [Intuit Developer Portal](https://developer.intuit.com) for your app.
+3.) Follow the Pre-Requisites mentioned in the repository above.
 
+4.) Set the config credentials under ~/.ssh
+	
+      ~/.ssh  ( goto Finder -> Go -> Go to Folder -> ~/.ssh )
+          
+* Create a file named config and copy the below:
 
-## Difference between OAuth2.0 and OpenID Connect
+	```Host review-service-bastion-prod
+	Hostname {hostname of Bastion Instance}
+	User ec2-user
+	IdentityFile ~/.ssh/sbg-idg-awesome-preprod.pem 
+	ForwardAgent yes
 
-Lets take a look at the key differences between OAuth2.0 and OpenID connect as per the authorization flow is :
+	Host review-service-prod-1
+	Hostname  {hostname / private IP of the instance that you are SSH’ing into}
+	ProxyCommand ssh -W %h:%p review-service-bastion-prod
+	User ec2-user
+	IdentityFile ~/.ssh/sbg-idg-awesome-preprod.pem 
+	ServerAliveInterval 60
+	  ForwardAgent yes
+	  ForwardX11 yes
+	  LogLevel QUIET
+	  ServerAliveInterval 60
+	  StrictHostKeyChecking no
+	  UserKnownHostsFile /dev/null
+	  TCPKeepAlive yes
+	Host *.a.intuit.com
+	  User ec2-user```
+
+* Change the values in the above file 
+
+	```
+	IdentityFile ~/.ssh/sbg-idg-awesome-preprod.pem
+	
+	( make sure this reflects the name of the security file created by the stack )     
+	```
+
+5.) Set the config credentials under ~/.aws
  
+	~/.aws  ( goto Finder -> Go -> Go to Folder -> ~/.aws )
 
-* **OAuth2.0**  
- 
-    * Scope - Available scopes include: (Space delimited set of permissions that the application requests)
-                 
-          com.intuit.quickbooks.accounting — QuickBooks Online API
-                 
-          com.intuit.quickbooks.payment — QuickBooks Payments API   
-    ![APP screenshots](views/oauth2_scopes.png)
-             
-    * OAuth2.0 authorization flow  
-    ![APP screenshots](views/oauth2flow.png)  
-    
-    * OAuth2.0 Documentation - click [here](https://developer.intuit.com/docs/00_quickbooks_online/2_build/10_authentication_and_authorization/10_oauth_2.0)
-    
-    
-    
-* **OpenID Connect**
+*  Create a file named config 
 
-    * Scope -  Available scopes include: (Space delimited set of permissions that the application requests)   
-                     
-          openid — QuickBooks Online API
-                 
-          profile — QuickBooks Payments API  
-             
-          email - user's email address  
-                     
-          phone - user's phone number  
-            
-          address - user's physical address                   
-    ![APP screenshots](views/openIDConnect_scopes.png)
-                       
-    * OpenID Connect authorization flow  
-    ![APP screenshots](views/openIdConnectflow.png)  
- 
-    * OpenID Connect Documentation - click [here](https://developer.intuit.com/docs/00_quickbooks_online/2_build/10_authentication_and_authorization/50_identity/20_openid_connect) 
+    ```
+    [default]
+	    region = us-west-2    
+        output = json  
+	    [profile preprod]  
+        s3 =
+        signature_version = s3v4
+    ```
+* Create a file named credentials and paste your temporary API Keys from AWS ( developer portal ) : https://devportal.intuit.com
+
+    ```
+        [preprod]
+        aws_access_key_id = << Enter your aws_access_key_id >>
+        aws_secret_access_key = << Enter your secret_access_key >>
+        aws_session_token = << Enter your aws_session_token >> 
     
+    ```
+5.) Launch the Environment ( creates the AWS stack ) :  
+      https://github.intuit.com/idg/awesome-service-aws-config#launch-environment-preprod-example    
 
-## Usage
+6.) You can deploy the code to the new environment using the steps mentioned in the above link.   
+     **Ex** : aws s3 cp awesome-service-deploy/target/awesome-service.zip s3://awesome-service-codepipeline-source-{{AWS_ACCOUNT_ID}}-us-west-2/awesome-service-pipeline/awesome-service.zip  
+     **Note** : the path awesome-service-deploy/target/awesome-service.zip —> refers to the zip file of your code.  
+     
+In addition you would need to create a `appspec.yml` with a `scripts` folder to guide Code-Deploy to Deploy your app.
 
-```bash
-$ npm start
+
+## Manually Deploying Code to S3 Bucket
+
+If you are manually deploying code to S3 Bucket. Make sure you create a folder inside `{sample-app-name}-codepipeline-source-xxxxxxxxx-us-west-2`:
+
+```
+{sample-app-name}-pipeline
 ```
 
-### Start ngrok (if you are using ngrok )
-
-```bash
-$ ngrok http 3000
-```
-
-Go to the URL (you must start ngrok if using it):
+1.) Zip your code at the root level ( where you specify the `appspec.yml`) : For Mac use the below command to .zip yout code:    
+2.) cd into the root folder of your app to be deployed
 
 ```
-https://755c8b38.ngrok.io/
-````
+zip -r -X /awesome-service.zip ./
+```
 
-Then click the <input type="button" value="Login (OAuth2.0)"> button to authorize the demo app and view the access token.
 
-Events are logged to the Node.js console.
 
-![APP screenshots](views/HomePage.png)
+
+
+
+
+

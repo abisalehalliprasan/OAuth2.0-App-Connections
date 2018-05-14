@@ -1,7 +1,7 @@
 {
-  "clientId": "",
-  "clientSecret": "",
-  "redirectUri": "http://localhost:3000/callback",
+  "clientId": "Q37Y35eZLxG4MaY5k07C9iIOjhbSH8kv43DOWpTKfuWq8B6KUo",
+  "clientSecret": "ce8PusIahB6z3YRYjPa4aGZeYXP8Kv1r5B3lMHYs",
+  "redirectUri": "https://c7dd3a45.ngrok.io/callback",
   "authorization_endpoint":"https://appcenter.intuit.com/connect/oauth2",
   "token_endpoint":"https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
   "sandbox_api_uri": "https://sandbox-quickbooks.api.intuit.com/v3/company/",

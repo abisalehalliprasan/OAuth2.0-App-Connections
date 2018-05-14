@@ -34,8 +34,10 @@
     "path": "^0.12.7",
     "query-string": "^5.0.1",
     "request": "^2.78.0",
+    "request-promise": "^4.2.2",
     "rsa-pem-from-mod-exp": "^0.8.4",
     "save": "^2.3.2",
+    "socket.io": "^2.1.0",
     "xlsx-template": "^0.2.0"
   }
 }

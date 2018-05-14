@@ -1,9 +1,11 @@
 require('dotenv').config();
-var https = require('https');
+
 var express = require('express');
 var session = require('express-session');
 var request = require('request');
+var rp = require('request-promise');
 var app = express();
+var http = require('http').createServer(app);
 var config = require('./config.json');
 var path = require('path');
 var crypto = require('crypto');
@@ -14,6 +16,8 @@ var json2csv = require('json2csv');
 var Tokens = require('csrf');
 var csrf = new Tokens();
 var atob = require('atob');
+var io = require('socket.io')(http);
+
 
 // Configure View and Handlebars
 app.use(express.static(path.join(__dirname, '')))
@@ -64,15 +68,35 @@ app.get('/authUri', function(req,res) {
     var redirecturl = config.authorization_endpoint + '?' + queryString.stringify({
         'client_id': config.clientId,
         'redirect_uri': config.redirectUri,  //Make sure this path matches entry in application dashboard
-        'scope': config.scopes.connect_to_quickbooks[0]+' '+config.scopes.connect_to_quickbooks[1]+' '+config.scopes.sign_in_with_intuit[0]+' '+config.scopes.sign_in_with_intuit[1]+' '+config.scopes.sign_in_with_intuit[2]+' '+config.scopes.sign_in_with_intuit[3]+' '+config.scopes.sign_in_with_intuit[4],
+        'scope': config.scopes.connect_to_quickbooks[0]+' '+config.scopes.sign_in_with_intuit[0]+' '+config.scopes.sign_in_with_intuit[1]+' '+config.scopes.sign_in_with_intuit[2]+' '+config.scopes.sign_in_with_intuit[3]+' '+config.scopes.sign_in_with_intuit[4],
         'response_type': 'code',
         'state': state
     });
     res.send(redirecturl);
 });
 
+app.get('/authorize', function(req,res) {
+    
+    console.log("Inside Authorize");
+    // Generate csrf Anti Forgery 
+    req.session.secret = csrf.secretSync();
+    var state = csrf.create(req.session.secret);
+    
+    // Generate the AuthUrl
+    var redirecturl = config.authorization_endpoint + '?' + queryString.stringify({
+        'client_id': config.clientId,
+        'redirect_uri': config.redirectUri,  //Make sure this path matches entry in application dashboard
+        'scope': config.scopes.sign_in_with_intuit[0]+' '+config.scopes.sign_in_with_intuit[1]+' '+config.scopes.sign_in_with_intuit[2]+' '+config.scopes.sign_in_with_intuit[3]+' '+config.scopes.sign_in_with_intuit[4]+' '+config.scopes.connect_to_quickbooks[0],
+        'response_type': 'code',
+        'state': state
+    });
+    // res.send(redirecturl);
+    res.redirect(redirecturl);
+});
+
 app.get('/callback', function(req, res) {
 
+    console.log("Inside Callback");
     var parsedUri = queryString.parse(req.originalUrl);
     realmId = parsedUri.realmId;
 
@@ -91,12 +115,63 @@ app.get('/callback', function(req, res) {
         }
     };
 
-    request.post(postBody, function (err, res, data) {
-        accessToken = JSON.parse(res.body);
-            oauth2_token_json = JSON.stringify(accessToken, null,2);
-            console.log('The access tokeb is :'+oauth2_token_json);
+    // Using req-promise
+    var options = {
+        uri: config.token_endpoint,
+        headers: {
+            Accept: 'application/json',
+            Authorization: 'Basic ' + auth,
+        },
+        form: {
+            grant_type: 'authorization_code',
+            code: req.query.code,
+            redirect_uri: config.redirectUri
+        },
+        method: 'POST',
+        resolveWithFullResponse: true
+    };
+
+
+    rp(options)
+    .then(function (response) {
+        accessToken = JSON.parse(response.body);
+                 oauth2_token_json = JSON.stringify(accessToken, null,2);
+                 console.log('The access tokeb is inside:'+oauth2_token_json);
+                 res.redirect('/connected');
+    })
+    .catch(function (err) {
+        // POST failed...
+    });
+
+    // request.post(postBody, function (err, res, data) {
+    //     accessToken = JSON.parse(res.body);
+    //         oauth2_token_json = JSON.stringify(accessToken, null,2);
+    //         console.log('The access tokeb is :'+oauth2_token_json);
+    //     });
+
+
+       
+});
+
+app.get('/callback1', function(req, res) {
+
+    console.log("Inside Callback");
+    
+    io.on('connection', function(socket){
+        var msg = 'tyest';
+        socket.on('chat message', function(msg){
+          io.emit('chat message', msg);
         });
-    res.send('');
+      });
+});
+
+app.get('/connected', function(req, res) {
+
+    console.log("The value of token is  coinnected :"+oauth2_token_json);
+    res.render('index', {
+        oauth2_token_json: oauth2_token_json,
+        test: 'tresttet'
+    });
 });
 
 app.get('/refreshAccessToken', function(req,res){
@@ -156,6 +231,6 @@ app.get('/getCompanyInfo', function(req,res){
 
 
 // Start server on HTTP (will use ngrok for HTTPS forwarding)
-app.listen(3000, function () {
+app.listen(8080, function () {
     console.log('Example app listening on port 3000!')
 });
