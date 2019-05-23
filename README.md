@@ -26,7 +26,7 @@ We will showcase how to integrate your app with the Intuit Developer Platform. I
 
 ```bash
 $ git clone https://github.com/abisalehalliprasan/OAuth2.0-DevX-UI
-$ cd OAuth2.0-DevX-UI
+$ cd OAuth2.0-App-Connections
 $ npm install
 ```
 
