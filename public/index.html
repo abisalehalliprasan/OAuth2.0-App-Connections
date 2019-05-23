@@ -1,0 +1,70 @@
+<html>
+<head>
+    <link rel="apple-touch-icon icon shortcut" type="image/png" href="https://plugin.intuitcdn.net/sbg-web-shell-ui/6.3.0/shell/harmony/images/QBOlogo.png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="common.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="stylesheet" type="text/css" href="css/index.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css">
+    <script src="js/index.js"></script>
+</head>
+<body>
+<div class="container">
+
+    <h1>
+        <a href="http://developer.intuit.com">
+            <img src="quickbooks_logo_horz.png" id="headerLogo">
+        </a>
+
+    </h1>
+
+    <hr>
+
+    <div class="well text-center">
+
+        <h1>This App is used by DevX-UI for Testing App Connections</h1>
+
+        <br>
+
+    </div>
+
+    <h2>OAuth2.0</h2><h4>( Please refer to the <a target="_balnk" href="https://developer.intuit.com/docs/00_quickbooks_online/2_build/10_authentication_and_authorization/10_oauth_2.0">OAuth2.0 Documentation</a> )</h4>
+    <p>If there is no access token or the access token is invalid, click the <b>Connect to QuickBooks</b> button below.</p>
+    <pre id="accessToken">{{ oauth2_token_json }}</pre>
+    <a class="imgLink" href="#" id="connectToQuickbooks" type="submit"><img src="C2QB_green_btn_lg_default.png" width="178" /></a>
+    <button  type="button" id="viewToken" type="submit" class="btn btn-success">View Token</button>
+    <button  type="button" id="refreshToken" class="btn btn-success" type="submit">Refresh Token</button>
+    <hr />
+
+    <h2>Make an API call</h2><h4>( Please refer to our <a target="_balnk" href="https://developer.intuit.com/v2/apiexplorer?apiname=V3QBO#?id=Account">API Explorer</a> )</h4>
+    <p>If there is no access token or the access token is invalid, click either the <b>Connect to QucikBooks</b> or <b>Sign with Intuit</b> button above.</p>
+    <pre id="apiCall">{{ api_call }}</pre>
+    <!--<a class="imgLink" href="#" onclick="oauth.loginPopup({openIDConnect: true})">Make an API call</a>-->
+    <button  type="button" class="btn btn-success" id="getCompanyInfo" type="submit">Get Company Info</button>
+
+    <hr />
+
+    <p>More info:</p>
+    <ul>
+        <li><a href="https://developer.intuit.com/docs">Intuit API Developer Guide</a></li>
+        <li><a href="https://developer.intuit.com/docs/00_quickbooks_online/2_build/50_sample_apps_and_code">Intuit Sample Apps and Code</a></li>
+        <li><a href="https://developer.intuit.com/docs/00_quickbooks_online/2_build/40_sdks">Intuit Official SDK's</a></li>
+        <li><a href="https://github.com/anilkumarbp/intuit-demos-webhooks">Github Repo</a></li>
+        <li><a href="https://github.com/anilkumarbp/intuit-demos-webhooks/issues">Report Issues</a></li>
+    </ul>
+    <hr>
+    <p class="text-center text-muted">
+        &copy; 2018 Intuit&trade;, Inc. All rights reserved. Intuit and QuickBooks are registered trademarks of Intuit Inc.
+    </p>
+
+</div>
+</body>
+<script src="js/index.js"></script>
+</html>

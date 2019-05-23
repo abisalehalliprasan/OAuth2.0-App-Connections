@@ -1,39 +1,22 @@
 require('dotenv').config();
 
-var express = require('express');
-var session = require('express-session');
-var request = require('request');
-var rp = require('request-promise');
-var app = express();
-var http = require('http').createServer(app);
-var config = require('./config.json');
-var path = require('path');
-var crypto = require('crypto');
-var QuickBooks = require('node-quickbooks');
-var queryString = require('query-string');
-var fs = require('fs');
-var json2csv = require('json2csv');
-var Tokens = require('csrf');
-var csrf = new Tokens();
-var atob = require('atob');
-var io = require('socket.io')(http);
+const config = require('./config.json');
+const OAuthClient = require('intuit-oauth');
+const express = require('express');
+const app = express();
+const path = require('path');
+const bodyParser = require('body-parser');
+const ngrok =  (config.ngrok_enabled === true) ? require('ngrok'):null;
 
 
-// Configure View and Handlebars
-app.use(express.static(path.join(__dirname, '')))
-app.set('views', path.join(__dirname, 'views'))
-var exphbs = require('express-handlebars');
-var hbs = exphbs.create({});
-app.engine('handlebars', hbs.engine);
-app.set('view engine', 'handlebars');
-app.use(session({secret: 'secret', resave: 'false', saveUninitialized: 'false'}))
 
-/*
-Create body parsers for application/json and application/x-www-form-urlencoded
- */
-var bodyParser = require('body-parser')
+app.use(bodyParser.urlencoded({extended: true}));
+app.use(express.static(path.join(__dirname, '/public')));
+app.engine('html', require('ejs').renderFile);
+app.set('view engine', 'html');
 app.use(bodyParser.json())
-var urlencodedParser = bodyParser.urlencoded({ extended: false })
+
+var urlencodedParser = bodyParser.urlencoded({ extended: false });
 
 /*
 App Variables
@@ -46,6 +29,17 @@ var oauth2_token_json=null,
 var fields = ['realmId', 'name', 'id', 'operation', 'lastUpdated'];
 var newLine= "\r\n";
 
+/**
+ * Instantiate new Client
+ * @type {OAuthClient}
+ */
+
+var oauthClient = new OAuthClient({
+  clientId: config.clientId,
+  clientSecret: config.clientSecret,
+  environment: config.environment,
+  redirectUri: config.redirectUri
+});
 
 app.use(express.static('views'));
 
@@ -58,112 +52,41 @@ app.get('/', function(req, res) {
     });
 });
 
-app.get('/authUri', function(req,res) {
-    
-    // Generate csrf Anti Forgery 
-    req.session.secret = csrf.secretSync();
-    var state = csrf.create(req.session.secret);
-    
-    // Generate the AuthUrl
-    var redirecturl = config.authorization_endpoint + '?' + queryString.stringify({
-        'client_id': config.clientId,
-        'redirect_uri': config.redirectUri,  //Make sure this path matches entry in application dashboard
-        'scope': config.scopes.connect_to_quickbooks[0]+' '+config.scopes.sign_in_with_intuit[0]+' '+config.scopes.sign_in_with_intuit[1]+' '+config.scopes.sign_in_with_intuit[2]+' '+config.scopes.sign_in_with_intuit[3]+' '+config.scopes.sign_in_with_intuit[4],
-        'response_type': 'code',
-        'state': state
-    });
-    res.send(redirecturl);
+
+app.get('/authorize', urlencodedParser, function(req,res) {
+
+  var authUri = oauthClient.authorizeUri({scope:[OAuthClient.scopes.Accounting],state:'intuit-test'});
+  res.send(authUri);
+
 });
 
-app.get('/authorize', function(req,res) {
-    
-    console.log("Inside Authorize");
-    // Generate csrf Anti Forgery 
-    req.session.secret = csrf.secretSync();
-    var state = csrf.create(req.session.secret);
-    
-    // Generate the AuthUrl
-    var redirecturl = config.authorization_endpoint + '?' + queryString.stringify({
-        'client_id': config.clientId,
-        'redirect_uri': config.redirectUri,  //Make sure this path matches entry in application dashboard
-        'scope': config.scopes.sign_in_with_intuit[0]+' '+config.scopes.sign_in_with_intuit[1]+' '+config.scopes.sign_in_with_intuit[2]+' '+config.scopes.sign_in_with_intuit[3]+' '+config.scopes.sign_in_with_intuit[4]+' '+config.scopes.connect_to_quickbooks[0],
-        'response_type': 'code',
-        'state': state
-    });
-    // res.send(redirecturl);
-    res.redirect(redirecturl);
-});
 
-app.get('/callback', function(req, res) {
+app.get('/callback', urlencodedParser, function(req, res) {
 
-    console.log("Inside Callback");
-    var parsedUri = queryString.parse(req.originalUrl);
-    realmId = parsedUri.realmId;
-
-    var auth = (new Buffer(config.clientId + ':' + config.clientSecret).toString('base64'));
-    var postBody = {
-        url: config.token_endpoint,
-        headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            Authorization: 'Basic ' + auth,
-        },
-        form: {
-            grant_type: 'authorization_code',
-            code: req.query.code,
-            redirect_uri: config.redirectUri
-        }
-    };
-
-    // Using req-promise
-    var options = {
-        uri: config.token_endpoint,
-        headers: {
-            Accept: 'application/json',
-            Authorization: 'Basic ' + auth,
-        },
-        form: {
-            grant_type: 'authorization_code',
-            code: req.query.code,
-            redirect_uri: config.redirectUri
-        },
-        method: 'POST',
-        resolveWithFullResponse: true
-    };
-
-
-    rp(options)
-    .then(function (response) {
-        accessToken = JSON.parse(response.body);
-                 oauth2_token_json = JSON.stringify(accessToken, null,2);
-                 console.log('The access tokeb is inside:'+oauth2_token_json);
-                 res.redirect('/connected');
+  console.log('The callback called ');
+  oauthClient.createToken(req.url)
+    .then(function(authResponse) {
+      oauth2_token_json = JSON.stringify(authResponse.getJson(), null,2);
+      console.log('The callback called inside '+oauth2_token_json);
+      accessToken = authResponse.getJson();
+      // oauth2_token_json = JSON.stringify(accessToken, null,2);
+      // console.log('The access tokeb is inside:'+oauth2_token_json);
+      res.send('');
     })
-    .catch(function (err) {
-        // POST failed...
+    .catch(function(e) {
+      console.error(e);
     });
 
-    // request.post(postBody, function (err, res, data) {
-    //     accessToken = JSON.parse(res.body);
-    //         oauth2_token_json = JSON.stringify(accessToken, null,2);
-    //         console.log('The access tokeb is :'+oauth2_token_json);
-    //     });
-
+  // res.send('Thanks');
 
        
 });
 
-app.get('/callback1', function(req, res) {
+app.get('/viewToken', urlencodedParser, function(req,res){
 
-    console.log("Inside Callback");
-    
-    io.on('connection', function(socket){
-        var msg = 'tyest';
-        socket.on('chat message', function(msg){
-          io.emit('chat message', msg);
-        });
-      });
-});
+  res.send(oauth2_token_json);
+
+})
 
 app.get('/connected', function(req, res) {
 
@@ -174,63 +97,50 @@ app.get('/connected', function(req, res) {
     });
 });
 
-app.get('/refreshAccessToken', function(req,res){
 
-    // save the access token somewhere on behalf of the logged in user
-    var qbo = new QuickBooks(config.clientId,
-        config.clientSecret,
-        accessToken.access_token, /* oAuth access token */
-        false, /* no token secret for oAuth 2.0 */
-        realmId,
-        config.useSandbox, /* use a sandbox account */
-        true, /* turn debugging on */
-        4, /* minor version */
-        '2.0', /* oauth version */
-        accessToken.refresh_token /* refresh token */);
+app.post('/refreshAccessToken', urlencodedParser, function(req,res){
 
-    qbo.refreshAccessToken(function(err, refreshToken) {
-        if (err) {
-            console.log(err);
-            res.send(err);
-        }
-        else {
-            console.log("The response refresh is :" + JSON.stringify(refreshToken,null,2));
-            res.send(refreshToken);
-        }
-});
-
+  oauthClient.refresh()
+    .then(function(authResponse){
+      console.log('The Refresh Token is  '+ JSON.stringify(authResponse.getJson()));
+      oauth2_token_json = JSON.stringify(authResponse.getJson(), null,2);
+      res.send(oauth2_token_json);
+    })
+    .catch(function(e) {
+      console.error(e);
+    });
 
 });
 
-app.get('/getCompanyInfo', function(req,res){
+
+app.get('/launch', urlencodedParser , function(req,res) {
+
+  var authUri = oauthClient.authorizeUri({scope:[OAuthClient.scopes.OpenId,OAuthClient.scopes.Email,OAuthClient.scopes.Profile,OAuthClient.scopes.Address,OAuthClient.scopes.Address],state:'intuit-test'});
+  res.send(authUri);
+
+});
 
 
-    // save the access token somewhere on behalf of the logged in user
-    var qbo = new QuickBooks(config.clientId,
-        config.clientSecret,
-        accessToken.access_token, /* oAuth access token */
-        false, /* no token secret for oAuth 2.0 */
-        realmId,
-        config.useSandbox, /* use a sandbox account */
-        true, /* turn debugging on */
-        4, /* minor version */
-        '2.0', /* oauth version */
-        accessToken.refresh_token /* refresh token */);
+app.post('/getCompanyInfo', urlencodedParser , function(req,res){
 
-    qbo.getCompanyInfo(realmId, function(err, companyInfo) {
-        if (err) {
-            console.log(err);
-            res.send(err);
-        }
-        else {
-            console.log("The response is :" + JSON.stringify(companyInfo,null,2));
-            res.send(companyInfo);
-        }
+  const companyID = oauthClient.getToken().realmId;
+  const url = config.environment == 'sandbox' ? OAuthClient.environment.sandbox : OAuthClient.environment.production ;
+
+  oauthClient.makeApiCall({url: url + 'v3/company/' + companyID +'/companyinfo/' + companyID})
+    .then(function(authResponse){
+      console.log("The response for API call is :"+JSON.stringify(authResponse));
+      // const apiResp = JSON.stringify(aut
+      res.send(JSON.parse(authResponse.text()));
+    })
+    .catch(function(e) {
+      console.error(e);
     });
 });
 
 
+
 // Start server on HTTP (will use ngrok for HTTPS forwarding)
-app.listen(8080, function () {
-    console.log('Example app listening on port 3000!')
-});
+app.listen(3000, function () {
+  console.log('Example app listening on port 3000!')
+})
+
